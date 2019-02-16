@@ -13,4 +13,6 @@ pip install torch-multi-head-attention
 
 ```python
 from torch_multi_head_attention import MultiHeadAttention
+
+MultiHeadAttention(in_features=768, head_num=12)
 ```
