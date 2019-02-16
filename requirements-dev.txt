@@ -4,6 +4,4 @@ wheel>=0.31.0
 pycodestyle
 nose
 coverage
-numpy
-Keras
 keras-multi-head
