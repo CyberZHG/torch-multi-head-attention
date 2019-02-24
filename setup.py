@@ -12,7 +12,7 @@ with codecs.open('requirements.txt', 'r', 'utf8') as reader:
 
 setup(
     name='torch-multi-head-attention',
-    version='0.15.0',
+    version='0.15.1',
     packages=find_packages(),
     url='https://github.com/CyberZHG/torch-multi-head-attention',
     license='MIT',

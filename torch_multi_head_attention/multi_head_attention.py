@@ -38,26 +38,14 @@ class MultiHeadAttention(nn.Module):
         self.in_features = in_features
         self.head_num = head_num
         self.activation = activation
-        self.weight = nn.Parameter(torch.Tensor(in_features, in_features * 4))
-        if bias:
-            self.bias = nn.Parameter(torch.Tensor(in_features * 4))
-        else:
-            self.register_parameter('bias', None)
-        self.reset_parameters()
-
-    def reset_parameters(self):
-        torch.nn.init.xavier_normal(self.weight)
-        if self.bias is not None:
-            torch.nn.init.zeros_(self.bias)
+        self.bias = bias
+        self.linear_q = nn.Linear(in_features, in_features, bias)
+        self.linear_k = nn.Linear(in_features, in_features, bias)
+        self.linear_v = nn.Linear(in_features, in_features, bias)
+        self.linear_o = nn.Linear(in_features, in_features, bias)
 
     def forward(self, q, k, v, mask=None):
-        q = q.matmul(self.weight[:, :self.in_features])
-        k = k.matmul(self.weight[:, self.in_features:self.in_features * 2])
-        v = v.matmul(self.weight[:, self.in_features * 2:self.in_features * 3])
-        if self.bias is not None:
-            q += self.bias[:self.in_features]
-            k += self.bias[self.in_features:self.in_features * 2]
-            v += self.bias[self.in_features * 2:self.in_features * 3]
+        q, k, v = self.linear_q(q), self.linear_k(k), self.linear_v(v)
         if self.activation is not None:
             q = self.activation(q)
             k = self.activation(k)
@@ -71,9 +59,7 @@ class MultiHeadAttention(nn.Module):
         y = ScaledDotProductAttention()(q, k, v, mask)
         y = self._reshape_from_batches(y)
 
-        y = y.matmul(self.weight[:, -self.in_features:])
-        if self.bias is not None:
-            y += self.bias[-self.in_features:]
+        y = self.linear_o(y)
         if self.activation is not None:
             y = self.activation(y)
         return y
@@ -105,5 +91,5 @@ class MultiHeadAttention(nn.Module):
 
     def extra_repr(self):
         return 'in_features={}, head_num={}, bias={}, activation={}'.format(
-            self.in_features, self.head_num, self.bias is not None, self.activation,
+            self.in_features, self.head_num, self.bias, self.activation,
         )

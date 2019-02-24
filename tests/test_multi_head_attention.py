@@ -11,20 +11,6 @@ from torch_multi_head_attention import MultiHeadAttention
 
 class TestMultiHeadAttention(TestCase):
 
-    def test_weight_size(self):
-        net = MultiHeadAttention(in_features=120, head_num=6)
-        model_path = os.path.join(tempfile.gettempdir(), 'test_multi_head_attention_%f.pth' % random.random())
-        torch.save(net, model_path)
-        net = torch.load(model_path)
-        print(net)
-        self.assertEqual(torch.Size([120, 480]), net.weight.size())
-        self.assertEqual(torch.Size([480]), net.bias.size())
-
-    def test_no_bias(self):
-        net = MultiHeadAttention(in_features=120, head_num=6, bias=False)
-        self.assertEqual(torch.Size([120, 480]), net.weight.size())
-        self.assertEqual(None, net.bias)
-
     def test_divisible(self):
         with self.assertRaises(ValueError):
             MultiHeadAttention(in_features=73, head_num=5)
@@ -32,8 +18,30 @@ class TestMultiHeadAttention(TestCase):
     @staticmethod
     def get_torch_layer_with_weights(feature_dim, head_num, weights, bias):
         layer = MultiHeadAttention(feature_dim, head_num)
-        layer.weight = torch.nn.Parameter(torch.from_numpy(weights))
-        layer.bias = torch.nn.Parameter(torch.from_numpy(bias))
+        layer.linear_q.weight = torch.nn.Parameter(
+            torch.from_numpy(weights[:, :feature_dim]).transpose(1, 0)
+        )
+        layer.linear_q.bias = torch.nn.Parameter(
+            torch.from_numpy(bias[:feature_dim])
+        )
+        layer.linear_k.weight = torch.nn.Parameter(
+            torch.from_numpy(weights[:, feature_dim:feature_dim * 2]).transpose(1, 0)
+        )
+        layer.linear_k.bias = torch.nn.Parameter(
+            torch.from_numpy(bias[feature_dim:feature_dim * 2])
+        )
+        layer.linear_v.weight = torch.nn.Parameter(
+            torch.from_numpy(weights[:, feature_dim * 2:feature_dim * 3]).transpose(1, 0)
+        )
+        layer.linear_v.bias = torch.nn.Parameter(
+            torch.from_numpy(bias[feature_dim * 2:feature_dim * 3])
+        )
+        layer.linear_o.weight = torch.nn.Parameter(
+            torch.from_numpy(weights[:, -feature_dim:]).transpose(1, 0)
+        )
+        layer.linear_o.bias = torch.nn.Parameter(
+            torch.from_numpy(bias[-feature_dim:])
+        )
         return layer
 
     @staticmethod
@@ -63,6 +71,7 @@ class TestMultiHeadAttention(TestCase):
         bias = np.random.standard_normal((feature_dim * 4,))
         torch_net = self.get_torch_layer_with_weights(feature_dim, head_num, weights, bias)
         keras_net = self.get_keras_layer_weight_weights(seq_len, feature_dim, head_num, weights, bias)
+        print(torch_net)
         allclose_count = 0
         for _ in range(100):
             x = np.random.standard_normal((batch_size, seq_len, feature_dim))
